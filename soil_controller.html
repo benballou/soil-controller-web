@@ -1,102 +1,71 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Autopot</title>
-</head>
-<body>
-    <h1>Autopot</h1>
-    <button id="connectBtn">Connect to Autopot</button>
-    <br><br>
-    <label for="humidity">Soil Humidity Threshold (%):</label>
-    <input type="range" id="humidity" min="0" max="100" step="0.1">
-    <span id="humidityValue">55</span>%
-    <br><br>
-    <label for="duration">Pump Duration (seconds):</label>
-    <input type="range" id="duration" min="1" max="10">
-    <span id="durationValue">5</span> seconds
-    <br><br>
-    <label for="interval">Check Interval (hours):</label>
-    <input type="range" id="interval" min="1" max="48">
-    <span id="intervalValue">1</span> hours
-    <br><br>
-    <button id="updateBtn">Update Settings</button>
+<script>
+    const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+    const HUMIDITY_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+    const DURATION_UUID = "4a98f54e-7e11-11ec-90d6-0242ac120003";
+    const INTERVAL_UUID = "4a98f6fc-7e11-11ec-90d6-0242ac120003";
 
-    <script>
-        const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-        const HUMIDITY_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-        const DURATION_UUID = "4a98f54e-7e11-11ec-90d6-0242ac120003";
-        const INTERVAL_UUID = "4a98f6fc-7e11-11ec-90d6-0242ac120003";
+    let device;
+    let humidityCharacteristic;
+    let durationCharacteristic;
+    let intervalCharacteristic;
 
-        let device;
-        let humidityCharacteristic;
-        let durationCharacteristic;
-        let intervalCharacteristic;
-        document.getElementById("connectBtn").addEventListener("click", async () => {
-    try {
-        device = await navigator.bluetooth.requestDevice({
-            filters: [{ services: [SERVICE_UUID] }]
-        });
+    document.getElementById("connectBtn").addEventListener("click", async () => {
+        try {
+            device = await navigator.bluetooth.requestDevice({
+                filters: [{ services: [SERVICE_UUID] }]
+            });
 
-        // Handle the connection process
-        const server = await device.gatt.connect();
-        console.log("Connected to device:", device.name);
-        
-        // Access the service and characteristics
-        const service = await server.getPrimaryService(SERVICE_UUID);
-        humidityCharacteristic = await service.getCharacteristic(HUMIDITY_UUID);
-        durationCharacteristic = await service.getCharacteristic(DURATION_UUID);
-        intervalCharacteristic = await service.getCharacteristic(INTERVAL_UUID);
+            const server = await device.gatt.connect();
+            const service = await server.getPrimaryService(SERVICE_UUID);
 
-        console.log("Connected to Autopot");
-        alert("Connected to Autopot!");
+            humidityCharacteristic = await service.getCharacteristic(HUMIDITY_UUID);
+            durationCharacteristic = await service.getCharacteristic(DURATION_UUID);
+            intervalCharacteristic = await service.getCharacteristic(INTERVAL_UUID);
 
-    } catch (error) {
-        console.error("Failed to connect:", error);
-        alert("Failed to connect to Autopot. Error: " + error.message);
-    }
-});
+            console.log("Connected to Autopot");
+            alert("Connected to Autopot!");
+        } catch (error) {
+            console.log(error);
+            alert("Failed to connect to Autopot.");
+        }
+    });
 
+    // Update the displayed values when sliders change
+    document.getElementById("humidity").addEventListener("input", function() {
+        document.getElementById("humidityValue").textContent = this.value;
+    });
 
-        // Update the displayed values when sliders change
-        document.getElementById("humidity").addEventListener("input", function() {
-            document.getElementById("humidityValue").textContent = this.value;
-        });
+    document.getElementById("duration").addEventListener("input", function() {
+        document.getElementById("durationValue").textContent = this.value;
+    });
 
-        document.getElementById("duration").addEventListener("input", function() {
-            document.getElementById("durationValue").textContent = this.value;
-        });
+    document.getElementById("interval").addEventListener("input", function() {
+        document.getElementById("intervalValue").textContent = this.value;
+    });
 
-        document.getElementById("interval").addEventListener("input", function() {
-            document.getElementById("intervalValue").textContent = this.value;
-        });
+    document.getElementById("updateBtn").addEventListener("click", async () => {
+        if (!device) {
+            alert("Please connect to the device first.");
+            return;
+        }
 
-        document.getElementById("updateBtn").addEventListener("click", async () => {
-            if (!device) {
-                alert("Please connect to the device first.");
-                return;
-            }
+        const humidityValue = parseFloat(document.getElementById("humidity").value);
+        const durationValue = parseInt(document.getElementById("duration").value);
+        const intervalValue = parseInt(document.getElementById("interval").value) * 3600000; // Convert hours to milliseconds
 
-            const humidityValue = parseFloat(document.getElementById("humidity").value);
-            const durationValue = parseInt(document.getElementById("duration").value);
-            const intervalValue = parseInt(document.getElementById("interval").value) * 3600000; // Convert hours to milliseconds
+        if (!isNaN(humidityValue)) {
+            await humidityCharacteristic.writeValue(new Float32Array([humidityValue]));
+            console.log(`Humidity threshold set to: ${humidityValue}%`);
+        }
 
-            if (!isNaN(humidityValue)) {
-                await humidityCharacteristic.writeValue(new Float32Array([humidityValue]));
-                console.log(`Humidity threshold set to: ${humidityValue}%`);
-            }
+        if (!isNaN(durationValue)) {
+            await durationCharacteristic.writeValue(new Uint8Array([durationValue]));
+            console.log(`Pump duration set to: ${durationValue} seconds`);
+        }
 
-            if (!isNaN(durationValue)) {
-                await durationCharacteristic.writeValue(new Uint8Array([durationValue]));
-                console.log(`Pump duration set to: ${durationValue} seconds`);
-            }
-
-            if (!isNaN(intervalValue)) {
-                await intervalCharacteristic.writeValue(new Uint32Array([intervalValue]));
-                console.log(`Check interval set to: ${intervalValue / 3600000} hours`);
-            }
-        });
-    </script>
-</body>
-</html>
+        if (!isNaN(intervalValue)) {
+            await intervalCharacteristic.writeValue(new Uint32Array([intervalValue]));
+            console.log(`Check interval set to: ${intervalValue / 3600000} hours`);
+        }
+    });
+</script>
