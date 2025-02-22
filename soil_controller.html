@@ -33,27 +33,31 @@
         let humidityCharacteristic;
         let durationCharacteristic;
         let intervalCharacteristic;
-
         document.getElementById("connectBtn").addEventListener("click", async () => {
-            try {
-                device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [SERVICE_UUID] }]
-                });
-
-                const server = await device.gatt.connect();
-                const service = await server.getPrimaryService(SERVICE_UUID);
-
-                humidityCharacteristic = await service.getCharacteristic(HUMIDITY_UUID);
-                durationCharacteristic = await service.getCharacteristic(DURATION_UUID);
-                intervalCharacteristic = await service.getCharacteristic(INTERVAL_UUID);
-
-                console.log("Connected to Autopot");
-                alert("Connected to Autopot!");
-            } catch (error) {
-                console.log(error);
-                alert("Failed to connect to Autopot.");
-            }
+    try {
+        device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: [SERVICE_UUID] }]
         });
+
+        // Handle the connection process
+        const server = await device.gatt.connect();
+        console.log("Connected to device:", device.name);
+        
+        // Access the service and characteristics
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        humidityCharacteristic = await service.getCharacteristic(HUMIDITY_UUID);
+        durationCharacteristic = await service.getCharacteristic(DURATION_UUID);
+        intervalCharacteristic = await service.getCharacteristic(INTERVAL_UUID);
+
+        console.log("Connected to Autopot");
+        alert("Connected to Autopot!");
+
+    } catch (error) {
+        console.error("Failed to connect:", error);
+        alert("Failed to connect to Autopot. Error: " + error.message);
+    }
+});
+
 
         // Update the displayed values when sliders change
         document.getElementById("humidity").addEventListener("input", function() {
