@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Soil Controller</title>
+</head>
+<body>
+    <h1>ESP32 Soil Controller</h1>
+    <button id="connectBtn">Connect to ESP32</button>
+    <br><br>
+    <label for="humidity">Soil Humidity Threshold (%):</label>
+    <input type="number" id="humidity" min="0" max="100" step="0.1">
+    <br><br>
+    <label for="duration">Pump Duration (seconds):</label>
+    <input type="number" id="duration" min="1" max="60">
+    <br><br>
+    <label for="interval">Check Interval (minutes):</label>
+    <input type="number" id="interval" min="1" max="1440">
+    <br><br>
+    <button id="updateBtn">Update Settings</button>
+
+    <script>
+        const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+        const HUMIDITY_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+        const DURATION_UUID = "4a98f54e-7e11-11ec-90d6-0242ac120003";
+        const INTERVAL_UUID = "4a98f6fc-7e11-11ec-90d6-0242ac120003";
+
+        let device;
+        let humidityCharacteristic;
+        let durationCharacteristic;
+        let intervalCharacteristic;
+
+        document.getElementById("connectBtn").addEventListener("click", async () => {
+            try {
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [SERVICE_UUID] }]
+                });
+
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+
+                humidityCharacteristic = await service.getCharacteristic(HUMIDITY_UUID);
+                durationCharacteristic = await service.getCharacteristic(DURATION_UUID);
+                intervalCharacteristic = await service.getCharacteristic(INTERVAL_UUID);
+
+                console.log("Connected to ESP32");
+                alert("Connected to ESP32!");
+            } catch (error) {
+                console.log(error);
+                alert("Failed to connect to ESP32.");
+            }
+        });
+
+        document.getElementById("updateBtn").addEventListener("click", async () => {
+            if (!device) {
+                alert("Please connect to the device first.");
+                return;
+            }
+
+            const humidityValue = parseFloat(document.getElementById("humidity").value);
+            const durationValue = parseInt(document.getElementById("duration").value);
+            const intervalValue = parseInt(document.getElementById("interval").value) * 60000; // Convert to milliseconds
+
+            if (!isNaN(humidityValue)) {
+                await humidityCharacteristic.writeValue(new Float32Array([humidityValue]));
+                console.log(`Humidity threshold set to: ${humidityValue}%`);
+            }
+
+            if (!isNaN(durationValue)) {
+                await durationCharacteristic.writeValue(new Uint8Array([durationValue]));
+                console.log(`Pump duration set to: ${durationValue} seconds`);
+            }
+
+            if (!isNaN(intervalValue)) {
+                await intervalCharacteristic.writeValue(new Uint32Array([intervalValue]));
+                console.log(`Check interval set to: ${intervalValue / 60000} minutes`);
+            }
+        });
+    </script>
+</body>
+</html>
