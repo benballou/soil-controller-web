@@ -1,71 +1,91 @@
-<script>
-    const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-    const HUMIDITY_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-    const DURATION_UUID = "4a98f54e-7e11-11ec-90d6-0242ac120003";
-    const INTERVAL_UUID = "4a98f6fc-7e11-11ec-90d6-0242ac120003";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autopot</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .slider-container { margin: 20px 0; }
+    .slider { width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>Autopot Controller</h1>
+  <button id="connectBtn">Connect to Autopot</button>
 
-    let device;
-    let humidityCharacteristic;
-    let durationCharacteristic;
-    let intervalCharacteristic;
+  <div id="controlPanel" style="display:none;">
+    <h2>Settings</h2>
 
-    document.getElementById("connectBtn").addEventListener("click", async () => {
-        try {
-            device = await navigator.bluetooth.requestDevice({
-                filters: [{ services: [SERVICE_UUID] }]
-            });
+    <div class="slider-container">
+      <label for="humiditySlider">Target Soil Humidity: <span id="humidityValue">55</span>%</label>
+      <input type="range" id="humiditySlider" class="slider" min="0" max="100" value="55">
+    </div>
 
-            const server = await device.gatt.connect();
-            const service = await server.getPrimaryService(SERVICE_UUID);
+    <div class="slider-container">
+      <label for="pumpSlider">Pump Duration: <span id="pumpValue">5</span> seconds</label>
+      <input type="range" id="pumpSlider" class="slider" min="1" max="20" value="5">
+    </div>
 
-            humidityCharacteristic = await service.getCharacteristic(HUMIDITY_UUID);
-            durationCharacteristic = await service.getCharacteristic(DURATION_UUID);
-            intervalCharacteristic = await service.getCharacteristic(INTERVAL_UUID);
+    <div class="slider-container">
+      <label for="intervalSlider">Check Interval: <span id="intervalValue">1</span> hour</label>
+      <input type="range" id="intervalSlider" class="slider" min="1" max="48" value="1">
+    </div>
+  </div>
 
-            console.log("Connected to Autopot");
-            alert("Connected to Autopot!");
-        } catch (error) {
-            console.log(error);
-            alert("Failed to connect to Autopot.");
-        }
-    });
+  <script>
+    let btDevice;
+    let btServer;
+    let btService;
+    let btCharacteristic;
 
-    // Update the displayed values when sliders change
-    document.getElementById("humidity").addEventListener("input", function() {
-        document.getElementById("humidityValue").textContent = this.value;
-    });
+    document.getElementById("connectBtn").addEventListener("click", connectToDevice);
 
-    document.getElementById("duration").addEventListener("input", function() {
-        document.getElementById("durationValue").textContent = this.value;
-    });
+    document.getElementById("humiditySlider").addEventListener("input", updateHumidity);
+    document.getElementById("pumpSlider").addEventListener("input", updatePumpDuration);
+    document.getElementById("intervalSlider").addEventListener("input", updateInterval);
 
-    document.getElementById("interval").addEventListener("input", function() {
-        document.getElementById("intervalValue").textContent = this.value;
-    });
+    async function connectToDevice() {
+      try {
+        btDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ name: 'Autopot' }],
+          optionalServices: ['battery_service', 'device_information']
+        });
 
-    document.getElementById("updateBtn").addEventListener("click", async () => {
-        if (!device) {
-            alert("Please connect to the device first.");
-            return;
-        }
+        btServer = await btDevice.gatt.connect();
+        btService = await btServer.getPrimaryService('battery_service');  // Replace with the appropriate service
+        btCharacteristic = await btService.getCharacteristic('battery_level');  // Replace with the appropriate characteristic
+        
+        document.getElementById("controlPanel").style.display = "block";
+        document.getElementById("connectBtn").style.display = "none";
+      } catch (error) {
+        console.error("Error connecting to device: " + error);
+      }
+    }
 
-        const humidityValue = parseFloat(document.getElementById("humidity").value);
-        const durationValue = parseInt(document.getElementById("duration").value);
-        const intervalValue = parseInt(document.getElementById("interval").value) * 3600000; // Convert hours to milliseconds
+    function updateHumidity() {
+      const humidity = document.getElementById("humiditySlider").value;
+      document.getElementById("humidityValue").textContent = humidity;
+      sendCommand(`SET_HUMIDITY:${humidity}`);
+    }
 
-        if (!isNaN(humidityValue)) {
-            await humidityCharacteristic.writeValue(new Float32Array([humidityValue]));
-            console.log(`Humidity threshold set to: ${humidityValue}%`);
-        }
+    function updatePumpDuration() {
+      const pumpDuration = document.getElementById("pumpSlider").value;
+      document.getElementById("pumpValue").textContent = pumpDuration;
+      sendCommand(`SET_PUMP_DURATION:${pumpDuration}`);
+    }
 
-        if (!isNaN(durationValue)) {
-            await durationCharacteristic.writeValue(new Uint8Array([durationValue]));
-            console.log(`Pump duration set to: ${durationValue} seconds`);
-        }
+    function updateInterval() {
+      const interval = document.getElementById("intervalSlider").value;
+      document.getElementById("intervalValue").textContent = interval;
+      sendCommand(`SET_INTERVAL:${interval}`);
+    }
 
-        if (!isNaN(intervalValue)) {
-            await intervalCharacteristic.writeValue(new Uint32Array([intervalValue]));
-            console.log(`Check interval set to: ${intervalValue / 3600000} hours`);
-        }
-    });
-</script>
+    function sendCommand(command) {
+      if (btDevice && btDevice.gatt.connected) {
+        btCharacteristic.writeValue(new TextEncoder().encode(command));
+      }
+    }
+  </script>
+</body>
+</html>
