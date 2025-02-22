@@ -3,20 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Soil Controller</title>
+    <title>Autopot</title>
 </head>
 <body>
-    <h1>ESP32 Soil Controller</h1>
-    <button id="connectBtn">Connect to ESP32</button>
+    <h1>Autopot</h1>
+    <button id="connectBtn">Connect to Autopot</button>
     <br><br>
     <label for="humidity">Soil Humidity Threshold (%):</label>
-    <input type="number" id="humidity" min="0" max="100" step="0.1">
+    <input type="range" id="humidity" min="0" max="100" step="0.1">
+    <span id="humidityValue">50</span>%
     <br><br>
     <label for="duration">Pump Duration (seconds):</label>
-    <input type="number" id="duration" min="1" max="60">
+    <input type="range" id="duration" min="1" max="10">
+    <span id="durationValue">5</span> seconds
     <br><br>
-    <label for="interval">Check Interval (minutes):</label>
-    <input type="number" id="interval" min="1" max="1440">
+    <label for="interval">Check Interval (hours):</label>
+    <input type="range" id="interval" min="1" max="48">
+    <span id="intervalValue">24</span> hours
     <br><br>
     <button id="updateBtn">Update Settings</button>
 
@@ -44,12 +47,25 @@
                 durationCharacteristic = await service.getCharacteristic(DURATION_UUID);
                 intervalCharacteristic = await service.getCharacteristic(INTERVAL_UUID);
 
-                console.log("Connected to ESP32");
-                alert("Connected to ESP32!");
+                console.log("Connected to Autopot");
+                alert("Connected to Autopot!");
             } catch (error) {
                 console.log(error);
-                alert("Failed to connect to ESP32.");
+                alert("Failed to connect to Autopot.");
             }
+        });
+
+        // Update the displayed values when sliders change
+        document.getElementById("humidity").addEventListener("input", function() {
+            document.getElementById("humidityValue").textContent = this.value;
+        });
+
+        document.getElementById("duration").addEventListener("input", function() {
+            document.getElementById("durationValue").textContent = this.value;
+        });
+
+        document.getElementById("interval").addEventListener("input", function() {
+            document.getElementById("intervalValue").textContent = this.value;
         });
 
         document.getElementById("updateBtn").addEventListener("click", async () => {
@@ -60,7 +76,7 @@
 
             const humidityValue = parseFloat(document.getElementById("humidity").value);
             const durationValue = parseInt(document.getElementById("duration").value);
-            const intervalValue = parseInt(document.getElementById("interval").value) * 60000; // Convert to milliseconds
+            const intervalValue = parseInt(document.getElementById("interval").value) * 3600000; // Convert hours to milliseconds
 
             if (!isNaN(humidityValue)) {
                 await humidityCharacteristic.writeValue(new Float32Array([humidityValue]));
@@ -74,7 +90,7 @@
 
             if (!isNaN(intervalValue)) {
                 await intervalCharacteristic.writeValue(new Uint32Array([intervalValue]));
-                console.log(`Check interval set to: ${intervalValue / 60000} minutes`);
+                console.log(`Check interval set to: ${intervalValue / 3600000} hours`);
             }
         });
     </script>
